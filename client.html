@@ -3,10 +3,21 @@
 
 <head>
   <title>Moracle prototype client</title>
+  <style>
+    .input {
+      font-size: 13px;
+    }
+  </style>
+
 </head>
 
 <body>
   <h1>Moracle prototype GUI</h1>
+  <p>
+    <small>Notary service proof-of-concept. This test will run until February 15th. The next version will feature significantly
+      better design. ;)
+    </small>
+  </p>
   <u>Status</u>
   <br> Connection:
   <span id="constat">connecting...</span>, Block height:
@@ -20,12 +31,36 @@
   </p>
   <p>
     Send MRCL:
+    <br>
+    <small>A 1 MRCL fee will be deducted from each transaction.</small>
     <br> Address:
-    <input type="text" id="taddress">
+    <input class="input" type="text" id="taddress" size="35">
     <br> Amount:
-    <input type="text" id="tamount">
+    <input class="input" type="text" id="tamount">
     <br>
     <button id="sendtx">Go!</button>
+  </p>
+  <p>
+    Notarize message:
+    <br>
+    <small>A 16 MRCL fee will be deducted for notarization.</small>
+    <br> Data:
+    <br>
+    <textarea rows="4" cols="30" id="notarydata"></textarea>
+    <br>
+    <button id="sendnotaryrequest">Go!</button>
+    <span id="notaryresults"></span>
+  </p>
+  <p>
+    Retrieve notarized message:
+    <br> Key:
+    <input class="input" type="text" id="notaryid" size=35>
+    <br>
+    <button id="notaryfetch">Go!</button>
+    <p id="notaryresultscontainer" style="display: none">
+      Your query returned:<br>
+      <span style="font-size: 25px" id="notaryfetchresults"></span>
+    </p>
   </p>
   Recent transactions:
   <br>
@@ -36,6 +71,8 @@
 
 
   <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+  <script src="triplesec-3.0.14-min.js"></script>
+  <script src="sha1.js"></script>
   <script>
     var useraddr;
 
@@ -45,6 +82,57 @@
         useraddr = res;
       });
     }
+
+    $('#sendnotaryrequest').click(function () {
+      var data = $('#notarydata').val();
+      console.log(data);
+      var shaObj = new jsSHA("SHA-1", "TEXT");
+      shaObj.update(data);
+      var hash = shaObj.getHash("HEX");
+      console.log(hash);
+
+      triplesec.encrypt({
+        data: new triplesec.Buffer(data),
+        key: new triplesec.Buffer(hash),
+      }, function (err, buff) {
+        if (!err) {
+          var ciphertext = buff.toString('hex');
+          console.log(ciphertext);
+
+          var shaObj = new jsSHA("SHA-1", "TEXT");
+          shaObj.update(ciphertext);
+          var cipher_hash = shaObj.getHash("HEX");
+          console.log(cipher_hash);
+
+          $.get('/notarize', { 'data': ciphertext }, function (res) {
+            console.log(res);
+            var access_key = cipher_hash + 'k' + hash;
+            $('#notaryresults').html('Your notarized data will be available at <b>' + access_key + '</b>');
+          });
+        }
+      });
+    });
+
+    $('#notaryfetch').click(function () {
+      var accesskey = $('#notaryid').val();
+      var keys = accesskey.split('k');
+      $.get('/state', function (res) {
+        var state = JSON.parse(res);
+        var data = state.notarizedMessages[keys[0]];
+        console.log(data);
+        console.log(keys[1]);
+
+        triplesec.decrypt({
+          data: new triplesec.Buffer(data, "hex"),
+          key: new triplesec.Buffer(keys[1]),
+        }, function (err, buff) {
+          if (!err) {
+            $('#notaryfetchresults').text(buff.toString());
+            $('#notaryresultscontainer').show();
+          }
+        });
+      });
+    });
 
     $('#sendtx').click(function () {
       var address = $('#taddress').val();
@@ -77,7 +165,9 @@
           var sender = base64toHEX(txs[i].senderAddress.substring(8));
           var reciever = base64toHEX(txs[i].receiverAddress.substring(8));
           var amount = txs[i].amount;
-          if (sender == useraddr) {
+          if (reciever == '56b05eb78ec46abe7c4a292b236a21d8a53b5350bb97dfbe32e316f44a27f5cc') {
+            ulstring += "<li>" + sender + " &rarr; " + "<b><span style='color: brown'>Notary fee</span></b>" + " for " + amount + "</li>";
+          } else if (sender == useraddr) {
             ulstring += "<li><b><span style='color: blue'>" + sender + "</span></b> &rarr; " + reciever + " for " + amount + "</li>";
           } else {
             ulstring += "<li>" + sender + " &rarr; " + reciever + " for " + amount + "</li>";
@@ -100,6 +190,24 @@
         $('#balance').html(balance);
       });
     }
+    function getData(accessKey) {
+      var keys = accessKey.split('k');
+      $.get('/state', function (res) {
+        var state = JSON.parse(res);
+        var data = state.notarizedMessages[keys[0]];
+        console.log(data);
+        console.log(keys[1]);
+
+        triplesec.decrypt({
+          data: new triplesec.Buffer(data, "hex"),
+          key: new triplesec.Buffer(keys[1]),
+        }, function (err, buff) {
+          if (!err) {
+            return buff.toString();
+          }
+        });
+      });
+    }
 
 
     function updateStatusDisplay() {
@@ -119,6 +227,7 @@
     updateStatusDisplay();
     updateBalances();
   </script>
+
 </body>
 
 </html>

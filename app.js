@@ -35,7 +35,7 @@ console.log("Address: " + address.toString("hex"));
 
 let app = lotion({
   initialState: {
-    pendingRequests: [],
+    notarizedMessages: {},
     balances: {
       '57162ecf4008ca8ba81ae09d2018015058a12dec12ee434b660be76be11f4f28': 2600000,
     },
@@ -54,7 +54,6 @@ app.use(token.handler);
 app.listen(3000);
 
 
-
 const localApiApp = express();
 
 localApiApp.use(function (req, res, next) {
@@ -64,9 +63,12 @@ localApiApp.use(function (req, res, next) {
 });
 
 var url = "http://localhost:3000";
+
 localApiApp.get('/', function (req, res) {
   res.sendFile(__dirname + '/client.html');
 });
+
+localApiApp.use(express.static(__dirname))
 //passthrough since lotion.js's default server doesn't have proper CORS support
 localApiApp.get('/state', function (req, res) {
   axios.get(url + '/state')
@@ -94,7 +96,12 @@ localApiApp.get('/baltransfer', function (req, res) {
     amount: parseInt(req.query.amount),
     address: req.query.address,
   });
-  res.send('transfer processed');
+  res.send('transfer received');
+});
+localApiApp.get('/notarize', function (req, res) {
+  client.notarize(key, {data: req.query.data});
+
+  res.send('notarize request received');
 });
 
 localApiApp.listen(4242, () => console.log('Go to localhost:4242'));

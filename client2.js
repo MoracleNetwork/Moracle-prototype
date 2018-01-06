@@ -43,7 +43,7 @@ let app = lotion({
   },
   createEmptyBlocks: false,
   logTendermint: true,
- 
+  genesis: 'genesis.json',
   peers: ['localhost:46658'],
   devMode: true,
 });

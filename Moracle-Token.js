@@ -1,10 +1,12 @@
 // based on lotion-coin
+// keppel is a hero
 
 let secp256k1 = require('secp256k1')
 let { randomBytes } = require('crypto')
 let createHash = require('sha.js')
 let vstruct = require('varstruct')
 let axios = require('axios')
+var sha1 = require('sha1');
 
 let TxStruct = vstruct([
     { name: 'amount', type: vstruct.UInt64BE },
@@ -35,7 +37,7 @@ exports.handler = function (state, rawTx) {
         console.log("amount is not integer");
         return
     }
-    if (tx.amount > senderBalance) {
+    if (tx.amount + 1 > senderBalance) {
         console.log("amount is not greater than balance");
         return
     }
@@ -43,12 +45,20 @@ exports.handler = function (state, rawTx) {
         console.log("invalid nonce");
         return
     }
-    senderBalance -= tx.amount
-    receiverBalance += tx.amount
+    senderBalance -= tx.amount + 1
+    receiverBalance += tx.amount - 1
+    // fee
 
     state.balances[senderAddress] = senderBalance
     state.balances[receiverAddress] = receiverBalance
     state.nonces[senderAddress] = (state.nonces[senderAddress] || 0) + 1
+
+
+    if (tx['transactionType'] == 'notarize') {
+        var data_hash = sha1(tx['data']);
+        console.log('Inserting notarized message into state.');
+        state.notarizedMessages[data_hash] = tx['data'];
+    }
 }
 
 function hashTx(tx) {
@@ -161,6 +171,35 @@ exports.client = function (url = 'http://localhost:3000') {
             let signedTx = signTx(privKey, tx)
             let serializedTx = serializeTx(signedTx)
             serializedTx['transactionType'] = 'balance-transfer';
+            console.log(JSON.stringify(serializedTx));
+            let result = await axios.post(url + '/txs', serializedTx)
+            return result.data
+        },
+        notarize: async (privKey, { data }) => {
+            let senderPubKey = methods.generatePublicKey(privKey)
+            let senderAddress = methods.generateAddress(senderPubKey)
+
+            let currentState = await axios.get(url + '/state').then(res => res.data)
+
+            let nonce = currentState.nonces[senderAddress.toString('hex')] || 0
+
+            let receiverAddress = Buffer.from('56b05eb78ec46abe7c4a292b236a21d8a53b5350bb97dfbe32e316f44a27f5cc', 'hex');
+            // this address affectively burns the tokens
+            let amount = 15;
+            // fixed notary fee.
+
+            let tx = {
+                amount,
+                senderPubKey,
+                senderAddress,
+                receiverAddress,
+                nonce
+            }
+
+            let signedTx = signTx(privKey, tx)
+            let serializedTx = serializeTx(signedTx)
+            serializedTx['transactionType'] = 'notarize';
+            serializedTx['data'] = data;
             console.log(JSON.stringify(serializedTx));
             let result = await axios.post(url + '/txs', serializedTx)
             return result.data
