@@ -58,8 +58,10 @@
     <br>
     <button id="notaryfetch">Go!</button>
     <p id="notaryresultscontainer" style="display: none">
-      Your query returned:<br>
-      <span style="font-size: 25px" id="notaryfetchresults"></span>
+      Your query returned:
+      <br>
+      <span style="font-size: 25px" id="notaryfetchresults"></span><br>
+      <span id="notarytimestamp"></span>
     </p>
   </p>
   Recent transactions:
@@ -118,7 +120,15 @@
       var keys = accesskey.split('k');
       $.get('/state', function (res) {
         var state = JSON.parse(res);
-        var data = state.notarizedMessages[keys[0]];
+        var data = state.notarizedMessages[keys[0]].data;
+        var timestamp = state.notarizedMessages[keys[0]].timestamp;
+        var date = new Date(timestamp);
+        var dateOptions = {
+          weekday: "long", year: "numeric", month: "short",
+          day: "numeric", hour: "2-digit", minute: "2-digit"
+        };
+        var dateString = date.toLocaleTimeString("en-us", dateOptions);
+        console.log(dateString);
         console.log(data);
         console.log(keys[1]);
 
@@ -128,6 +138,7 @@
         }, function (err, buff) {
           if (!err) {
             $('#notaryfetchresults').text(buff.toString());
+            $('#notarytimestamp').text(dateString);
             $('#notaryresultscontainer').show();
           }
         });

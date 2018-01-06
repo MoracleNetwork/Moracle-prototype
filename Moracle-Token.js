@@ -57,7 +57,7 @@ exports.handler = function (state, rawTx) {
     if (tx['transactionType'] == 'notarize') {
         var data_hash = sha1(tx['data']);
         console.log('Inserting notarized message into state.');
-        state.notarizedMessages[data_hash] = tx['data'];
+        state.notarizedMessages[data_hash] = {'data': tx['data'], 'timestamp': tx['time']};
     }
 }
 
@@ -200,6 +200,8 @@ exports.client = function (url = 'http://localhost:3000') {
             let serializedTx = serializeTx(signedTx)
             serializedTx['transactionType'] = 'notarize';
             serializedTx['data'] = data;
+            var milliseconds = (new Date).getTime();
+            serializedTx['time'] = milliseconds;
             console.log(JSON.stringify(serializedTx));
             let result = await axios.post(url + '/txs', serializedTx)
             return result.data
