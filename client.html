@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Moracle prototype client</title>
+</head>
+
+<body>
+  <h1>Moracle prototype GUI</h1>
+  <u>Status</u>
+  <br> Connection:
+  <span id="constat">connecting...</span>, Block height:
+  <span id="blockheight">x</span>
+
+  <p>Your MRCL testnet address:
+    <span id="address"></span>
+  </p>
+  <p>Your MRCL testnet balance:
+    <span id="balance">0</span>
+  </p>
+  <p>
+    Send MRCL:
+    <br> Address:
+    <input type="text" id="taddress">
+    <br> Amount:
+    <input type="text" id="tamount">
+    <br>
+    <button id="sendtx">Go!</button>
+  </p>
+  Recent transactions:
+  <br>
+  <ul id="recenttxs">
+
+  </ul>
+
+
+
+  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+  <script>
+    var useraddr;
+
+    function setup() {
+      $.get('/getaddress', function (res) {
+        $('#address').html(res);
+        useraddr = res;
+      });
+    }
+
+    $('#sendtx').click(function () {
+      var address = $('#taddress').val();
+      var amount = $('#tamount').val();
+      balTransfer(address, amount);
+    });
+    function balTransfer(destination, amount) {
+      $.get('/baltransfer', { 'address': destination, 'amount': amount }, function (res) {
+        console.log(res);
+      });
+    }
+    function base64toHEX(base64) {
+      var raw = atob(base64);
+      var HEX = '';
+      for (i = 0; i < raw.length; i++) {
+        var _hex = raw.charCodeAt(i).toString(16)
+        HEX += (_hex.length == 2 ? _hex : '0' + _hex);
+      }
+      return HEX.toLocaleLowerCase();
+    }
+
+    function getTransactions() {
+      $.get('/txs', function (res) {
+        var txs = JSON.parse(res);
+        var txs = txs.reverse();
+
+        var ulstring = "";
+        for (var i = 0; i < Math.min(txs.length, 20); i++) {
+
+          var sender = base64toHEX(txs[i].senderAddress.substring(8));
+          var reciever = base64toHEX(txs[i].receiverAddress.substring(8));
+          var amount = txs[i].amount;
+          if (sender == useraddr) {
+            ulstring += "<li><b><span style='color: blue'>" + sender + "</span></b> &rarr; " + reciever + " for " + amount + "</li>";
+          } else {
+            ulstring += "<li>" + sender + " &rarr; " + reciever + " for " + amount + "</li>";
+          }
+        }
+        $("#recenttxs").html(ulstring);
+      });
+    }
+
+    setInterval(function () {
+      updateStatusDisplay();
+      updateBalances();
+      getTransactions();
+    }, 1000);
+
+    function updateBalances() {
+      $.get('/state', function (res) {
+        var state = JSON.parse(res);
+        var balance = state.balances[useraddr];
+        $('#balance').html(balance);
+      });
+    }
+
+
+    function updateStatusDisplay() {
+      $.get('http://localhost:3000/tendermint/status', function (res, stat) {
+        var height = res.result.latest_block_height;
+        console.log(stat);
+        if (stat == 'success') {
+          $('#constat').html('<span style="color: green">connected</span>');
+        }
+        $('#blockheight').html(height);
+      }).fail(function () {
+        $('#constat').html('<span style="color: red">not connected</span>');
+      });
+    }
+
+    setup();
+    updateStatusDisplay();
+    updateBalances();
+  </script>
+</body>
+
+</html>
