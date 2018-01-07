@@ -45,6 +45,7 @@ let app = lotion({
   logTendermint: true,
   genesis: 'genesis.json',
   p2pPort: 46658,
+  peers: ['96.126.121.200:46658'],
 });
 
 
