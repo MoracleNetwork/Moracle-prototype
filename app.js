@@ -44,7 +44,6 @@ let app = lotion({
   createEmptyBlocks: false,
   logTendermint: true,
   genesis: 'genesis.json',
-  keys: 'keys.json',
   p2pPort: 46658,
 });
 
