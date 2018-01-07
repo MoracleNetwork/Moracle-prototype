@@ -10,7 +10,7 @@ var axios = require("axios");
 
 let client = token.client();
 
-if (!fs.existsSync('addresses2.json')) {
+if (!fs.existsSync('addresses.json')) {
   console.log("No key file found, generating Moracle address.");
   var key = client.generatePrivateKey();
   var pubkey = client.generatePublicKey(key);
@@ -18,11 +18,11 @@ if (!fs.existsSync('addresses2.json')) {
 
   var addresses_object = [];
   addresses_object.push({ 'privatekey': key.toString('hex'), 'publickey': pubkey.toString('hex'), 'address': address.toString('hex') });
-  fs.writeFileSync('addresses2.json', JSON.stringify(addresses_object));
+  fs.writeFileSync('addresses.json', JSON.stringify(addresses_object));
   console.log("Keys saved to addresses.json");
 } else {
   console.log("Loading private keys from file.");
-  var address_file = fs.readFileSync('addresses2.json');
+  var address_file = fs.readFileSync('addresses.json');
   var addresses_list = JSON.parse(address_file);
   var key = Buffer.from(addresses_list[0].privatekey, 'hex');
   var pubkey = client.generatePublicKey(key);
@@ -35,7 +35,7 @@ console.log("Address: " + address.toString("hex"));
 
 let app = lotion({
   initialState: {
-    pendingRequests: [],
+    notarizedMessages: {},
     balances: {
       '57162ecf4008ca8ba81ae09d2018015058a12dec12ee434b660be76be11f4f28': 2600000,
     },
@@ -44,15 +44,14 @@ let app = lotion({
   createEmptyBlocks: false,
   logTendermint: true,
   genesis: 'genesis.json',
-  peers: ['localhost:46658'],
-  devMode: true,
+  keys: 'keys.json',
+  p2pPort: 46658,
 });
 
 
 app.use(token.handler);
 
-app.listen(3001);
-
+app.listen(3000);
 
 
 const localApiApp = express();
@@ -63,10 +62,13 @@ localApiApp.use(function (req, res, next) {
   next();
 });
 
-var url = "http://localhost:3001";
+var url = "http://localhost:3000";
+
 localApiApp.get('/', function (req, res) {
   res.sendFile(__dirname + '/client.html');
 });
+
+localApiApp.use(express.static(__dirname))
 //passthrough since lotion.js's default server doesn't have proper CORS support
 localApiApp.get('/state', function (req, res) {
   axios.get(url + '/state')
@@ -94,8 +96,13 @@ localApiApp.get('/baltransfer', function (req, res) {
     amount: parseInt(req.query.amount),
     address: req.query.address,
   });
-  res.send('transfer processed');
+  res.send('transfer received');
+});
+localApiApp.get('/notarize', function (req, res) {
+  client.notarize(key, {data: req.query.data});
+
+  res.send('notarize request received');
 });
 
-localApiApp.listen(4241, () => console.log('Go to localhost:4242'));
+localApiApp.listen(4242, () => console.log('Go to localhost:4242'));
 
