@@ -1,0 +1,15 @@
+{
+    "app_hash": "",
+    "chain_id": "test-chain-hCcv0e",
+    "genesis_time": "0001-01-01T00:00:00Z",
+    "validators": [
+        {
+            "name": "",
+            "power": 10,
+            "pub_key": {
+                "data": "5D1469E7F6AA967178F8ECE3803B12405419B755C051AEA195F442B3242DFDCC",
+                "type": "ed25519"
+            }
+        }
+    ]
+}
