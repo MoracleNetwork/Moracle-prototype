@@ -1,3 +1,5 @@
+### [Demo](https://moracle.network/#demo)
+
 To run:
 
 First, clone the repository. Then, `cd` into it and run:
