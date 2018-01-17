@@ -2,6 +2,8 @@
 
 To run:
 
+**Note: the first round of testing has concluded. At the moment the client will fail to connect to any nodes.**
+
 First, clone the repository. Then, `cd` into it and run:
 
 ```
